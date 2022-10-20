@@ -30,32 +30,13 @@
 
 
 
-
-
-//#include <stdio.h>
-
 typedef unsigned char u8;
 
 u8 getFilteredValue(const u8 *src, int i, int j, int width);
 u8 getValue(const u8 *src, int i, int j, int width);
 void bitWriter(int *bitPos, u8 bitValue, int bitSize, u8 *result);
 int calN(u8 maxDelta);
-/*
 
-void print_ans1(const u8* buf, const int buflen)
-{
-    for (int i = 0; i < buflen; i++) {
-        if (i % 10 == 0 && i != 0)
-            printf("\n");
-        if (buf[i] == 0) {
-            printf("0x00, ");
-            continue;
-        }
-        printf("0x%02x, ", buf[i]);
-    }
-    printf("\n");
-}
-*/
 
 /* TODO: Implement this function */
 int encode(const u8 *src, int width, int height, u8 *result) {
