@@ -1,0 +1,3 @@
+C:/2022-SNU-Computer_Architecture/pa3/Cversion/cmake-build-debug/CMakeFiles/Cversion.dir
+C:/2022-SNU-Computer_Architecture/pa3/Cversion/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/2022-SNU-Computer_Architecture/pa3/Cversion/cmake-build-debug/CMakeFiles/rebuild_cache.dir
