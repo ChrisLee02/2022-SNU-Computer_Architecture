@@ -1,1 +1,1 @@
-CMakeLists.txt not found in C:\2022-SNU-Computer_Architecture\pa3 Select CMakeLists.txt
+CMakeLists.txt not found in C:\2022-SNU-Computer_Architecture\pa3_ Select CMakeLists.txt
