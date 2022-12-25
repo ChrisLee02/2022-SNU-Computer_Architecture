@@ -28,27 +28,6 @@ from pipe import *
 #   BTB: For Project #4
 #--------------------------------------------------------------------------
 
-class BTB(object):
-
-    def __init__(self, k):
-        self.k = k
-        # initialize your BTB here
-
-    # Lookup the entry corresponding to the pc
-    # It will return the target address if there is a matching entry
-    def lookup(self, pc):
-        return 0
-
-    # Add an entry 
-    def add(self, pc, target):
-        return
-
-    # Make the corresponding entry invalid
-    def remove(self, pc):
-        return
-
-
-
 #--------------------------------------------------------------------------
 #   Control signal table
 #--------------------------------------------------------------------------
@@ -247,9 +226,6 @@ class ID(Pipe):
         imm_u           = RISCV.imm_u(self.inst)
         imm_j           = RISCV.imm_j(self.inst)
 
-
-
-
         if (isPush):
             rf_rs1_data, rf_rs2_data = Pipe.cpu.rf.read(2, self.rs2)
             self.rs1 = 2
@@ -287,23 +263,23 @@ class ID(Pipe):
         isWBPushOrPop = (WB.reg_inst & WORD(0b1111111) == WORD(0b1101011))
 
         isMMPop = (MM.reg_inst & WORD(0b1111111) == WORD(0b1101011)) and ((MM.reg_inst >> 25) & WORD(0b1111111) == WORD(0b10))
-        isMMPop = (MM.reg_inst & WORD(0b1111111) == WORD(0b1101011)) and ((MM.reg_inst >> 25) & WORD(0b1111111) == WORD(0b1))
         isWBPop = (WB.reg_inst & WORD(0b1111111) == WORD(0b1101011)) and ((WB.reg_inst >> 25) & WORD(0b1111111) == WORD(0b10))
-        isWBPop = (WB.reg_inst & WORD(0b1111111) == WORD(0b1101011)) and ((WB.reg_inst >> 25) & WORD(0b1111111) == WORD(0b1))
 
         self.op1_data = self.pc         if Pipe.CTL.op1_sel == OP1_PC       else \
                         Pipe.EX.alu_out if Pipe.CTL.fwd_op1 == FWD_EX       else \
-                        Pipe.MM.wbdata  if Pipe.CTL.fwd_op1 == FWD_MM and not (isMMPushOrPop and isIDPushOrPop)  else \
+                        Pipe.MM.wbdata  if Pipe.CTL.fwd_op1 == FWD_MM and not (isMMPop and self.rs1 == 2)  else \
                         Pipe.MM.alu_out if Pipe.CTL.fwd_op1 == FWD_MM else \
-                        Pipe.WB.wbdata  if Pipe.CTL.fwd_op1 == FWD_WB and not (isWBPushOrPop and isIDPushOrPop) else \
+                        Pipe.WB.wbdata  if Pipe.CTL.fwd_op1 == FWD_WB and not (isWBPop and self.rs1 == 2) else \
                         Pipe.WB.alu_out if Pipe.CTL.fwd_op1 == FWD_WB else \
                         rf_rs1_data
 
         # Get forwarded value for rs2 if necessary
         # The order matters: EX -> MM -> WB (forwarding from the closest stage)
         self.op2_data = Pipe.EX.alu_out if Pipe.CTL.fwd_op2 == FWD_EX       else \
-                        Pipe.MM.wbdata  if Pipe.CTL.fwd_op2 == FWD_MM       else \
-                        Pipe.WB.wbdata  if Pipe.CTL.fwd_op2 == FWD_WB       else \
+                        Pipe.MM.wbdata  if Pipe.CTL.fwd_op2 == FWD_MM and not (isMMPop and self.rs2 == 2) else \
+                        Pipe.MM.alu_out if Pipe.CTL.fwd_op2 == FWD_MM       else \
+                        Pipe.WB.wbdata  if Pipe.CTL.fwd_op2 == FWD_WB and not (isWBPop and self.rs2 == 2) else \
+                        Pipe.WB.alu_out if Pipe.CTL.fwd_op2 == FWD_WB       else \
                         alu_op2
 
         # Get forwarded value for rs2 if necessary
@@ -311,8 +287,10 @@ class ID(Pipe):
         # For sw and branch instructions, we need to carry R[rs2] as well
         # -- in these instructions, op2_data will hold an immediate value
         self.rs2_data = Pipe.EX.alu_out if Pipe.CTL.fwd_rs2 == FWD_EX       else \
-                        Pipe.MM.wbdata  if Pipe.CTL.fwd_rs2 == FWD_MM       else \
-                        Pipe.WB.wbdata  if Pipe.CTL.fwd_rs2 == FWD_WB       else \
+                        Pipe.MM.wbdata if Pipe.CTL.fwd_rs2 == FWD_MM and not (isMMPop and self.rs2 == 2) else \
+                        Pipe.MM.alu_out  if Pipe.CTL.fwd_rs2 == FWD_MM       else \
+                        Pipe.WB.wbdata if Pipe.CTL.fwd_rs2 == FWD_WB and not (isWBPop and self.rs2 == 2) else \
+                        Pipe.WB.alu_out  if Pipe.CTL.fwd_rs2 == FWD_WB       else \
                         rf_rs2_data
 
 
@@ -763,47 +741,56 @@ class Control(object):
         isEXPopOrPush = (EX.reg_inst & WORD(0b1111111) == WORD(0b1101011))
         isMMPopOrPush = (MM.reg_inst & WORD(0b1111111) == WORD(0b1101011))
         isWBPopOrPush = (WB.reg_inst & WORD(0b1111111) == WORD(0b1101011))
-        isEXPop = (EX.reg_inst & WORD(0b1111111) == WORD(0b1101011) ) and ((EX.reg_inst >> 25) & WORD(0b1111111) == WORD(0b10))\
+        isEXPop = (EX.reg_inst & WORD(0b1111111) == WORD(0b1101011) ) and ((EX.reg_inst >> 25) & WORD(0b1111111) == WORD(0b10))
+        isMMPop = (MM.reg_inst & WORD(0b1111111) == WORD(0b1101011) ) and ((MM.reg_inst >> 25) & WORD(0b1111111) == WORD(0b10))
+        isWBPop = (WB.reg_inst & WORD(0b1111111) == WORD(0b1101011) ) and ((WB.reg_inst >> 25) & WORD(0b1111111) == WORD(0b10))
 
         # HERE: Change
-
-        self.fwd_op1        =   FWD_EX      if ((EX.reg_rd == Pipe.ID.rs1) and rs1_oen and  \
-                                               (EX.reg_rd != 0) and EX.reg_c_rf_wen) \
-                                                       or (isEXPopOrPush and isIDPopOrPush) \
-                                                      or  (isEXPop and (Pipe.ID.rs1 == 2) and rs1_oen )   \
-                                                                                    else   \
-                                FWD_MM      if (MM.reg_rd == Pipe.ID.rs1) and rs1_oen and   \
-                                                      (MM.reg_rd != 0) and Pipe.MM.c_rf_wen \
-                                                       or (isMMPopOrPush and isIDPopOrPush) \
-                                                                           else \
-                                FWD_WB      if (WB.reg_rd == Pipe.ID.rs1) and rs1_oen and   \
-                                               (WB.reg_rd != 0) and WB.reg_c_rf_wen \
-                                               or (isWBPopOrPush and isIDPopOrPush) \
-                                    else    \
-                                FWD_NONE
+        # op1, omitted or (isEXPopOrPush and isIDPopOrPush) \
+        self.fwd_op1 = FWD_EX if ((EX.reg_rd == Pipe.ID.rs1) and rs1_oen and \
+                                  (EX.reg_rd != 0) and EX.reg_c_rf_wen) \
+                                 or (isEXPop and (Pipe.ID.rs1 == 2) and rs1_oen) \
+            else \
+            FWD_MM if (MM.reg_rd == Pipe.ID.rs1) and rs1_oen and \
+                      (MM.reg_rd != 0) and Pipe.MM.c_rf_wen \
+                      or (isMMPop and (Pipe.ID.rs1 == 2) and rs1_oen) \
+                else \
+                FWD_WB if (WB.reg_rd == Pipe.ID.rs1) and rs1_oen and \
+                          (WB.reg_rd != 0) and WB.reg_c_rf_wen \
+                          or (isWBPop and (Pipe.ID.rs1 == 2) and rs1_oen) \
+                    else \
+                    FWD_NONE
         # Control signal for forwarding rs2 value to op2_data
         self.fwd_op2        =   FWD_EX      if (EX.reg_rd == Pipe.ID.rs2) and               \
                                                (EX.reg_rd != 0) and EX.reg_c_rf_wen and     \
                                                self.op2_sel == OP2_RS2 \
-                                               or (isEXPop and (Pipe.ID.rs2 == 2) and rs2_oen) \
+                                               or (isEXPop and (Pipe.ID.rs2 == 2) and self.op2_sel == OP2_RS2) \
                                                                                              else\
                                 FWD_MM      if (MM.reg_rd == Pipe.ID.rs2) and               \
                                                (MM.reg_rd != 0) and Pipe.MM.c_rf_wen and    \
-                                                                                            \
-                                               self.op2_sel == OP2_RS2 else                 \
+                                               self.op2_sel == OP2_RS2 \
+                                               or (isMMPop and (Pipe.ID.rs2 == 2) and self.op2_sel == OP2_RS2)\
+                                                                                        else                 \
                                 FWD_WB      if (WB.reg_rd == Pipe.ID.rs2) and               \
                                                (WB.reg_rd != 0) and WB.reg_c_rf_wen and     \
-                                               self.op2_sel == OP2_RS2 else                 \
+                                               self.op2_sel == OP2_RS2 \
+                                               or (isWBPop and (Pipe.ID.rs2 == 2) and self.op2_sel == OP2_RS2)\
+                                                        else                 \
                                 FWD_NONE
 
         # Control signal for forwarding rs2 value to rs2_data
         self.fwd_rs2        =   FWD_EX      if (EX.reg_rd == Pipe.ID.rs2) and rs2_oen and   \
-                                               (EX.reg_rd != 0) and EX.reg_c_rf_wen  \
-                                                                            else   \
+                                               (EX.reg_rd != 0) and EX.reg_c_rf_wen \
+                                               or (isEXPop and (Pipe.ID.rs2 == 2) and rs2_oen) \
+                                                                                                    else   \
                                 FWD_MM      if (MM.reg_rd == Pipe.ID.rs2) and rs2_oen and   \
-                                               (MM.reg_rd != 0) and Pipe.MM.c_rf_wen else   \
+                                               (MM.reg_rd != 0) and Pipe.MM.c_rf_wen \
+                                               or (isMMPop and (Pipe.ID.rs2 == 2) and rs2_oen) \
+                                                                                else   \
                                 FWD_WB      if (WB.reg_rd == Pipe.ID.rs2) and rs2_oen and   \
-                                               (WB.reg_rd != 0) and WB.reg_c_rf_wen  else   \
+                                               (WB.reg_rd != 0) and WB.reg_c_rf_wen \
+                                               or (isWBPop and (Pipe.ID.rs2 == 2) and rs2_oen) \
+                                                        else   \
                                 FWD_NONE
 
         # Check for load-use data hazard
@@ -881,8 +868,6 @@ class BTB(object):
 
     # def show(self):
     #     for entity in self.table:
-
-
 
 class Entry(object):
     def __init__(self, valid_bit, tag, target_address):
